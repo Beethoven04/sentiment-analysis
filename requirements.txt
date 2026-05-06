@@ -1,0 +1,23 @@
+# Core data / ML
+pandas>=3.0
+numpy>=2.0
+scikit-learn>=1.8
+matplotlib>=3.10
+seaborn>=0.13
+plotly>=6.0
+
+# Text preprocessing
+nltk>=3.9
+
+# Spark + Spark NLP
+pyspark==3.5.1
+spark-nlp>=6.4.0
+
+# Kafka streaming
+kafka-python>=2.0
+
+# MongoDB
+pymongo>=4.0
+
+# Web dashboard
+flask>=3.1
