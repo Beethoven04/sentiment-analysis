@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Sentiment Stream</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; margin: 0; padding: 20px; }
+    h1 { color: #e47911; text-align: center; }
+    .back { color: #aaa; text-decoration: none; display: block; text-align: center; margin-bottom: 20px; }
+    #feed { max-width: 900px; margin: 0 auto; }
+    .card { background: #16213e; border-radius: 8px; padding: 15px; margin-bottom: 12px;
+            border-left: 5px solid #555; animation: fadeIn 0.5s ease; }
+    .card.positive { border-left-color: #2ecc71; }
+    .card.negative { border-left-color: #e74c3c; }
+    .card.neutral  { border-left-color: #f39c12; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .badge.positive { background: #2ecc71; color: #000; }
+    .badge.negative { background: #e74c3c; color: #fff; }
+    .badge.neutral  { background: #f39c12; color: #000; }
+    .product { font-size: 12px; color: #aaa; }
+    .text { font-size: 14px; color: #ccc; margin-top: 5px; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .correct { font-size: 11px; color: #888; margin-top: 4px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; } }
+    .status { text-align: center; color: #2ecc71; margin-bottom: 15px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <a href="/" class="back">← Back to Dashboard</a>
+  <h1>📡 Live Sentiment Stream</h1>
+  <div class="status" id="status">● Connecting...</div>
+  <div id="feed"></div>
+
+  <script>
+    let seen = new Set();
+
+    function fetchLatest() {
+      fetch('/api/latest')
+        .then(r => r.json())
+        .then(docs => {
+          document.getElementById('status').textContent = '● Live — updating every 2 seconds';
+          const feed = document.getElementById('feed');
+          let added  = 0;
+          docs.forEach(doc => {
+            if (seen.has(doc.reviewId)) return;
+            seen.add(doc.reviewId);
+            const s    = doc.predictedSentiment || 'unknown';
+            const card = document.createElement('div');
+            card.className = `card ${s}`;
+            card.innerHTML = `
+              <div class="header">
+                <span class="product">📦 ${doc.productId} &nbsp;|&nbsp; Score: ${doc.score}/5</span>
+                <span class="badge ${s}">${s.toUpperCase()}</span>
+              </div>
+              <div class="text">${doc.text ? doc.text.substring(0, 200) : ''}...</div>
+              <div class="correct">Ground truth: ${doc.groundTruth} | 
+                Correct: ${doc.predictionCorrect ? '✓' : '✗'} | 
+                ${doc.processedAt ? doc.processedAt.substring(0,19) : ''}</div>
+            `;
+            feed.insertBefore(card, feed.firstChild);
+            added++;
+          });
+          // Keep only last 50 cards
+          while (feed.children.length > 50) {
+            feed.removeChild(feed.lastChild);
+          }
+        })
+        .catch(() => {
+          document.getElementById('status').textContent = '● Reconnecting...';
+        });
+    }
+
+    fetchLatest();
+    setInterval(fetchLatest, 2000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Offline Analytics Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    h1 { color: #232f3e; text-align: center; }
+    .back { color: #555; text-decoration: none; display: block; text-align: center; margin-bottom: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1200px; margin: 0 auto; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .card h2 { color: #232f3e; margin-top: 0; font-size: 16px; }
+    .product-input { display: flex; gap: 10px; margin-bottom: 15px; }
+    input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    button { padding: 8px 16px; background: #e47911; color: white; 
+             border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #c96a00; }
+    .stats { display: flex; gap: 10px; margin-bottom: 15px; }
+    .stat { flex: 1; text-align: center; padding: 10px; border-radius: 6px; }
+    .stat.positive { background: #d5f5e3; color: #1a7a41; }
+    .stat.negative { background: #fadbd8; color: #922b21; }
+    .stat.neutral  { background: #fef9e7; color: #9a7d0a; }
+    .stat .num { font-size: 24px; font-weight: bold; }
+    .stat .lbl { font-size: 12px; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <a href="/" class="back">← Back to Dashboard</a>
+  <h1>📊 Offline Analytics Dashboard</h1>
+
+  <div class="grid">
+    <!-- Bar chart: predictions per date -->
+    <div class="card">
+      <h2>Sentiment Predictions by Date</h2>
+      <canvas id="barChart"></canvas>
+    </div>
+
+    <!-- Pie chart: product scoring -->
+    <div class="card">
+      <h2>Product Sentiment Scoring</h2>
+      <div class="product-input">
+        <input id="productInput" type="text" 
+               placeholder="Enter ProductId e.g. B001E4KFG0" 
+               value="B001E4KFG0"/>
+        <button onclick="loadProduct()">Analyze</button>
+      </div>
+      <div class="stats" id="productStats" style="display:none">
+        <div class="stat positive">
+          <div class="num" id="posCount">0</div>
+          <div class="lbl">Positive</div>
+        </div>
+        <div class="stat negative">
+          <div class="num" id="negCount">0</div>
+          <div class="lbl">Negative</div>
+        </div>
+        <div class="stat neutral">
+          <div class="num" id="neuCount">0</div>
+          <div class="lbl">Neutral</div>
+        </div>
+      </div>
+      <canvas id="pieChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // ── Bar chart ──────────────────────────────────────────
+    let barChart, pieChart;
+
+    fetch('/api/by_date')
+      .then(r => r.json())
+      .then(data => {
+        const labels   = data.map(d => d.date);
+        const positive = data.map(d => d.positive);
+        const negative = data.map(d => d.negative);
+        const neutral  = data.map(d => d.neutral);
+
+        const ctx = document.getElementById('barChart').getContext('2d');
+        barChart  = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Positive', data: positive, backgroundColor: '#2ecc71' },
+              { label: 'Negative', data: negative, backgroundColor: '#e74c3c' },
+              { label: 'Neutral',  data: neutral,  backgroundColor: '#f39c12' },
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+            plugins: { legend: { position: 'top' } }
+          }
+        });
+      });
+
+    // ── Pie chart ──────────────────────────────────────────
+    function loadProduct() {
+      const pid = document.getElementById('productInput').value.trim();
+      if (!pid) return;
+
+      fetch(`/api/product/${pid}`)
+        .then(r => r.json())
+        .then(data => {
+          const c = data.counts;
+
+          document.getElementById('posCount').textContent = c.positive;
+          document.getElementById('negCount').textContent = c.negative;
+          document.getElementById('neuCount').textContent = c.neutral;
+          document.getElementById('productStats').style.display = 'flex';
+
+          if (pieChart) pieChart.destroy();
+          const ctx = document.getElementById('pieChart').getContext('2d');
+          pieChart  = new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: ['Positive', 'Negative', 'Neutral'],
+              datasets: [{
+                data: [c.positive, c.negative, c.neutral],
+                backgroundColor: ['#2ecc71', '#e74c3c', '#f39c12'],
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { position: 'bottom' },
+                title: { display: true, text: `Product: ${pid} (${data.total} reviews)` }
+              }
+            }
+          });
+        });
+    }
+
+    loadProduct();
+  </script>
+</body>
+</html>
