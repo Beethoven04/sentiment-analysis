@@ -6,13 +6,15 @@ to the 'amazon-reviews' Kafka topic, simulating a real-time stream.
 
 import json
 import time
+from pathlib import Path
 import pandas as pd
 from kafka import KafkaProducer
 
 # --- Configuration ---
+BASE_DIR     = Path(__file__).resolve().parent.parent
 KAFKA_BROKER = "localhost:9092"
 TOPIC        = "amazon-reviews"
-TEST_CSV     = "/Users/beethoven/BigData/AmazonReview/data/test.csv"
+TEST_CSV     = BASE_DIR / "data" / "test.csv"
 DELAY        = 1.0  # seconds between messages — simulates real-time flow
 
 # --- Initialize producer ---

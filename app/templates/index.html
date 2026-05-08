@@ -1,28 +1,415 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Amazon Sentiment Dashboard</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SentiStream — Amazon Review Intelligence</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <style>
-    body { font-family: Arial, sans-serif; background: #f5f5f5; 
-           display: flex; justify-content: center; align-items: center; 
-           height: 100vh; margin: 0; }
-    .container { text-align: center; }
-    h1 { color: #232f3e; }
-    .buttons { margin-top: 30px; display: flex; gap: 20px; justify-content: center; }
-    a.btn { padding: 20px 40px; border-radius: 8px; text-decoration: none;
-            font-size: 18px; font-weight: bold; color: white; }
-    .online  { background: #e47911; }
-    .offline { background: #232f3e; }
+    :root {
+      --bg:        #080c12;
+      --surface:   #0d1420;
+      --border:    #1a2540;
+      --accent:    #00e5a0;
+      --accent2:   #0066ff;
+      --text:      #e8edf5;
+      --muted:     #5a6a8a;
+      --positive:  #00e5a0;
+      --negative:  #ff3d6b;
+      --neutral:   #ffb800;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Glow orbs ── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb-1 {
+      width: 500px; height: 500px;
+      background: rgba(0,102,255,0.12);
+      top: -150px; left: -100px;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    .orb-2 {
+      width: 400px; height: 400px;
+      background: rgba(0,229,160,0.08);
+      bottom: -100px; right: -100px;
+      animation: drift 15s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes drift {
+      from { transform: translate(0,0); }
+      to   { transform: translate(40px, 30px); }
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 48px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8,12,18,0.85);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 17px;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .logo span { color: var(--accent); }
+    .nav-badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 48px 80px;
+      text-align: center;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      border: 1px solid rgba(0,229,160,0.3);
+      background: rgba(0,229,160,0.05);
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin-bottom: 32px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .tag::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    h1 {
+      font-size: clamp(40px, 7vw, 80px);
+      font-weight: 600;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+      max-width: 900px;
+    }
+    h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: var(--muted);
+      font-weight: 300;
+      max-width: 560px;
+      line-height: 1.7;
+      margin-bottom: 56px;
+    }
+
+    /* ── CTA buttons ── */
+    .cta-group {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 80px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      border-radius: 6px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #080c12;
+    }
+    .btn-primary:hover {
+      background: #00ffb3;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,229,160,0.3);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .btn svg { width: 18px; height: 18px; }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      overflow: hidden;
+      margin-bottom: 80px;
+    }
+    .stat-item {
+      flex: 1;
+      padding: 24px 32px;
+      border-right: 1px solid var(--border);
+      text-align: left;
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 28px;
+      color: var(--accent);
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Architecture diagram ── */
+    .arch {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto 80px;
+    }
+    .arch-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .arch-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .arch-node {
+      flex: 1;
+      padding: 20px 16px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .arch-node:last-child { border-right: none; }
+    .arch-node-icon {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    .arch-node-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .arch-node-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-top: 4px;
+    }
+    .arch-arrow {
+      color: var(--accent);
+      font-size: 18px;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+    .arch-node.highlight {
+      background: rgba(0,229,160,0.05);
+    }
+    .arch-node.highlight .arch-node-name {
+      color: var(--accent);
+    }
+
+    /* ── Footer ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 24px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    footer span {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+      nav { padding: 16px 24px; }
+      .hero { padding: 100px 24px 60px; }
+      .stats-bar { flex-direction: column; }
+      .arch-row { flex-wrap: wrap; }
+      footer { flex-direction: column; gap: 8px; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🛒 Amazon Review Sentiment Analysis</h1>
-    <p>Real-time sentiment analysis powered by Kafka + Spark + MongoDB</p>
-    <div class="buttons">
-      <a href="/online"  class="btn online">📡 Online Stream</a>
-      <a href="/offline" class="btn offline">📊 Offline Dashboard</a>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <nav>
+    <div class="logo">Senti<span>Stream</span></div>
+    <div class="nav-badge">v1.0 · Big Data Project</div>
+  </nav>
+
+  <section class="hero">
+    <div class="tag">Real-Time NLP Pipeline</div>
+
+    <h1>Amazon Review<br/><em>Sentiment Intelligence</em></h1>
+
+    <p class="subtitle">
+      500,000 food reviews. Kafka streaming. Spark ML.
+      Real-time sentiment classification with a production-grade pipeline.
+    </p>
+
+    <div class="cta-group">
+      <a href="/online" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+        </svg>
+        Live Stream
+      </a>
+      <a href="/offline" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+        </svg>
+        Analytics Dashboard
+      </a>
     </div>
-  </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-value">568K</div>
+        <div class="stat-label">Reviews Processed</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">0.845</div>
+        <div class="stat-label">Weighted F1 Score</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">3</div>
+        <div class="stat-label">Sentiment Classes</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">&lt;5s</div>
+        <div class="stat-label">Prediction Latency</div>
+      </div>
+    </div>
+
+    <div class="arch">
+      <div class="arch-title">Pipeline Architecture</div>
+      <div class="arch-row">
+        <div class="arch-node">
+          <div class="arch-node-icon">🛒</div>
+          <div class="arch-node-label">Source</div>
+          <div class="arch-node-name">Amazon</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node highlight">
+          <div class="arch-node-icon">⚡</div>
+          <div class="arch-node-label">Stream</div>
+          <div class="arch-node-name">Kafka</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node highlight">
+          <div class="arch-node-icon">🔥</div>
+          <div class="arch-node-label">Process</div>
+          <div class="arch-node-name">Spark ML</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <div class="arch-node-icon">🍃</div>
+          <div class="arch-node-label">Store</div>
+          <div class="arch-node-name">MongoDB</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">
+          <div class="arch-node-icon">📊</div>
+          <div class="arch-node-label">Visualize</div>
+          <div class="arch-node-name">Dashboard</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>SentiStream · Amazon Review Intelligence Pipeline</span>
+    <span>Kafka · Spark · MongoDB · Flask</span>
+  </footer>
 </body>
 </html>

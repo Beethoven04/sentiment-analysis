@@ -54,10 +54,12 @@ def api_by_date():
 
     counts = defaultdict(lambda: {"positive": 0, "negative": 0, "neutral": 0})
     for doc in docs:
-        date      = doc.get("reviewDate", "unknown")
+        date = doc.get("reviewDate", "unknown")
+        # Group by year-month instead of exact date
+        month     = date[:7] if len(date) >= 7 else date
         sentiment = doc.get("predictedSentiment", "unknown")
-        if sentiment in counts[date]:
-            counts[date][sentiment] += 1
+        if sentiment in counts[month]:
+            counts[month][sentiment] += 1
 
     result = sorted([
         {"date": d, **v} for d, v in counts.items()

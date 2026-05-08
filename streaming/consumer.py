@@ -7,6 +7,7 @@ sentiment model, and writes predictions to MongoDB in real-time.
 import os
 import json
 import warnings
+from pathlib import Path
 warnings.filterwarnings("ignore")
 
 # Java 17 flags — must be set before any PySpark import
@@ -23,10 +24,11 @@ from pymongo import MongoClient
 from datetime import datetime
 
 # --- Configuration ---
+BASE_DIR      = Path(__file__).resolve().parent.parent
 KAFKA_BROKER  = "localhost:9092"
 TOPIC         = "amazon-reviews"
-MODEL_PATH    = "/Users/beethoven/BigData/AmazonReview/model/best_sentiment_model"
-LABEL_MAP     = "/Users/beethoven/BigData/AmazonReview/model/label_mapping.json"
+MODEL_PATH    = str(BASE_DIR / "model" / "best_sentiment_model")
+LABEL_MAP     = str(BASE_DIR / "model" / "label_mapping.json")
 MONGO_URI     = "mongodb://localhost:27017"
 MONGO_DB      = "amazon_sentiment"
 MONGO_COL     = "predictions"
@@ -174,7 +176,7 @@ query = (
     # Trigger every 5 seconds — balances latency and throughput
     .trigger(processingTime="5 seconds")
     .option("checkpointLocation",
-            "/Users/beethoven/BigData/AmazonReview/model/checkpoint")
+            str(BASE_DIR / "model" / "checkpoint"))
     .start()
 )
 

@@ -1,73 +1,456 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Live Sentiment Stream</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SentiStream · Live Feed</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <style>
-    body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; margin: 0; padding: 20px; }
-    h1 { color: #e47911; text-align: center; }
-    .back { color: #aaa; text-decoration: none; display: block; text-align: center; margin-bottom: 20px; }
-    #feed { max-width: 900px; margin: 0 auto; }
-    .card { background: #16213e; border-radius: 8px; padding: 15px; margin-bottom: 12px;
-            border-left: 5px solid #555; animation: fadeIn 0.5s ease; }
-    .card.positive { border-left-color: #2ecc71; }
-    .card.negative { border-left-color: #e74c3c; }
-    .card.neutral  { border-left-color: #f39c12; }
-    .header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
-    .badge.positive { background: #2ecc71; color: #000; }
-    .badge.negative { background: #e74c3c; color: #fff; }
-    .badge.neutral  { background: #f39c12; color: #000; }
-    .product { font-size: 12px; color: #aaa; }
-    .text { font-size: 14px; color: #ccc; margin-top: 5px; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .correct { font-size: 11px; color: #888; margin-top: 4px; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; } }
-    .status { text-align: center; color: #2ecc71; margin-bottom: 15px; font-size: 14px; }
+    :root {
+      --bg:       #080c12;
+      --surface:  #0d1420;
+      --border:   #1a2540;
+      --accent:   #00e5a0;
+      --accent2:  #0066ff;
+      --text:     #e8edf5;
+      --muted:    #5a6a8a;
+      --positive: #00e5a0;
+      --negative: #ff3d6b;
+      --neutral:  #ffb800;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,160,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,160,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px;
+      height: 60px;
+      background: rgba(8,12,18,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .back {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+    .back:hover { color: var(--accent); }
+    .header-center {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      color: var(--text);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,229,160,0.4); }
+      50%       { opacity: 0.6; box-shadow: 0 0 0 6px rgba(0,229,160,0); }
+    }
+    .header-right {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── Layout ── */
+    .layout {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      height: calc(100vh - 60px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+    .sidebar-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    /* ── Counters ── */
+    .counters { display: flex; flex-direction: column; gap: 10px; }
+    .counter-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .counter-left { display: flex; align-items: center; gap: 10px; }
+    .counter-dot {
+      width: 10px; height: 10px; border-radius: 50; flex-shrink: 0;
+    }
+    .counter-dot.positive { background: var(--positive); border-radius: 50%; }
+    .counter-dot.negative { background: var(--negative); border-radius: 50%; }
+    .counter-dot.neutral  { background: var(--neutral);  border-radius: 50%; }
+    .counter-label { font-size: 13px; font-weight: 500; }
+    .counter-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .counter-value.positive { color: var(--positive); }
+    .counter-value.negative { color: var(--negative); }
+    .counter-value.neutral  { color: var(--neutral); }
+
+    /* ── Mini bar chart ── */
+    .mini-chart { padding: 4px 0; }
+    .mini-bar-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 8px;
+    }
+    .mini-bar-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      width: 50px;
+      flex-shrink: 0;
+    }
+    .mini-bar-track {
+      flex: 1; height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .mini-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+    .mini-bar-fill.positive { background: var(--positive); }
+    .mini-bar-fill.negative { background: var(--negative); }
+    .mini-bar-fill.neutral  { background: var(--neutral); }
+    .mini-bar-pct {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      width: 32px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ── Accuracy ── */
+    .accuracy-block {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+    }
+    .accuracy-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 32px;
+      color: var(--accent);
+      font-weight: 700;
+      line-height: 1;
+    }
+    .accuracy-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* ── Feed ── */
+    .feed-container {
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .feed-empty {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%;
+      flex-direction: column; gap: 16px;
+      color: var(--muted);
+    }
+    .feed-empty-icon { font-size: 40px; opacity: 0.4; }
+    .feed-empty-text { font-family: 'Space Mono', monospace; font-size: 12px; }
+
+    /* ── Review card ── */
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 16px 20px;
+      border-left: 3px solid var(--border);
+      animation: slideIn 0.4s cubic-bezier(0.16,1,0.3,1);
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card.positive { border-left-color: var(--positive); }
+    .card.negative { border-left-color: var(--negative); }
+    .card.neutral  { border-left-color: var(--neutral); }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .card-meta {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .card-product {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .card-score {
+      display: flex; gap: 2px;
+    }
+    .star { font-size: 10px; }
+    .star.filled { color: var(--neutral); }
+    .star.empty  { color: var(--border); }
+
+    .badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge.positive { background: rgba(0,229,160,0.12); color: var(--positive); }
+    .badge.negative { background: rgba(255,61,107,0.12); color: var(--negative); }
+    .badge.neutral  { background: rgba(255,184,0,0.12);  color: var(--neutral); }
+
+    .card-text {
+      font-size: 13px;
+      color: #9ab;
+      line-height: 1.6;
+      margin-bottom: 10px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-truth {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .correct-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+    .correct-tag.yes { background: rgba(0,229,160,0.1); color: var(--positive); }
+    .correct-tag.no  { background: rgba(255,61,107,0.1); color: var(--negative); }
+
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
   </style>
 </head>
 <body>
-  <a href="/" class="back">← Back to Dashboard</a>
-  <h1>📡 Live Sentiment Stream</h1>
-  <div class="status" id="status">● Connecting...</div>
-  <div id="feed"></div>
+  <header>
+    <a href="/" class="back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 5l-7 7 7 7"/>
+      </svg>
+      Dashboard
+    </a>
+    <div class="header-center">
+      <div class="live-dot"></div>
+      Live Sentiment Stream
+    </div>
+    <div class="header-right" id="updateTimer">Updating every 2s</div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-title">Prediction Counts</div>
+        <div class="counters">
+          <div class="counter-row">
+            <div class="counter-left">
+              <div class="counter-dot positive"></div>
+              <div class="counter-label">Positive</div>
+            </div>
+            <div class="counter-value positive" id="cnt-positive">0</div>
+          </div>
+          <div class="counter-row">
+            <div class="counter-left">
+              <div class="counter-dot negative"></div>
+              <div class="counter-label">Negative</div>
+            </div>
+            <div class="counter-value negative" id="cnt-negative">0</div>
+          </div>
+          <div class="counter-row">
+            <div class="counter-left">
+              <div class="counter-dot neutral"></div>
+              <div class="counter-label">Neutral</div>
+            </div>
+            <div class="counter-value neutral" id="cnt-neutral">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar-title">Distribution</div>
+        <div class="mini-chart">
+          <div class="mini-bar-row">
+            <div class="mini-bar-label">Positive</div>
+            <div class="mini-bar-track">
+              <div class="mini-bar-fill positive" id="bar-positive" style="width:0%"></div>
+            </div>
+            <div class="mini-bar-pct" id="pct-positive">0%</div>
+          </div>
+          <div class="mini-bar-row">
+            <div class="mini-bar-label">Negative</div>
+            <div class="mini-bar-track">
+              <div class="mini-bar-fill negative" id="bar-negative" style="width:0%"></div>
+            </div>
+            <div class="mini-bar-pct" id="pct-negative">0%</div>
+          </div>
+          <div class="mini-bar-row">
+            <div class="mini-bar-label">Neutral</div>
+            <div class="mini-bar-track">
+              <div class="mini-bar-fill neutral" id="bar-neutral" style="width:0%"></div>
+            </div>
+            <div class="mini-bar-pct" id="pct-neutral">0%</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar-title">Live Accuracy</div>
+        <div class="accuracy-block">
+          <div class="accuracy-value" id="live-accuracy">—</div>
+          <div class="accuracy-label">Correct predictions this session</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Feed -->
+    <main class="feed-container" id="feed">
+      <div class="feed-empty" id="empty-state">
+        <div class="feed-empty-icon">⚡</div>
+        <div class="feed-empty-text">Waiting for stream...</div>
+        <div class="feed-empty-text" style="opacity:0.5">Start the Kafka producer to see predictions</div>
+      </div>
+    </main>
+  </div>
 
   <script>
-    let seen = new Set();
+    const seen    = new Set();
+    let counts    = { positive: 0, negative: 0, neutral: 0 };
+    let correct   = 0;
+    let total     = 0;
+
+    function stars(score) {
+      let s = '';
+      for (let i = 1; i <= 5; i++) {
+        s += `<span class="star ${i <= score ? 'filled' : 'empty'}">${i <= score ? '★' : '☆'}</span>`;
+      }
+      return s;
+    }
+
+    function updateSidebar() {
+      document.getElementById('cnt-positive').textContent = counts.positive.toLocaleString();
+      document.getElementById('cnt-negative').textContent = counts.negative.toLocaleString();
+      document.getElementById('cnt-neutral').textContent  = counts.neutral.toLocaleString();
+
+      const t = counts.positive + counts.negative + counts.neutral || 1;
+      ['positive','negative','neutral'].forEach(s => {
+        const pct = Math.round(counts[s] / t * 100);
+        document.getElementById(`bar-${s}`).style.width = pct + '%';
+        document.getElementById(`pct-${s}`).textContent = pct + '%';
+      });
+
+      const acc = total > 0 ? Math.round(correct / total * 100) : null;
+      document.getElementById('live-accuracy').textContent = acc !== null ? acc + '%' : '—';
+    }
 
     function fetchLatest() {
       fetch('/api/latest')
         .then(r => r.json())
         .then(docs => {
-          document.getElementById('status').textContent = '● Live — updating every 2 seconds';
-          const feed = document.getElementById('feed');
-          let added  = 0;
+          const feed       = document.getElementById('feed');
+          const emptyState = document.getElementById('empty-state');
+          let added        = 0;
+
           docs.forEach(doc => {
             if (seen.has(doc.reviewId)) return;
             seen.add(doc.reviewId);
-            const s    = doc.predictedSentiment || 'unknown';
+
+            const s = doc.predictedSentiment || 'unknown';
+            counts[s] = (counts[s] || 0) + 1;
+            total++;
+            if (doc.predictionCorrect) correct++;
+
+            if (emptyState) emptyState.remove();
+
             const card = document.createElement('div');
             card.className = `card ${s}`;
             card.innerHTML = `
-              <div class="header">
-                <span class="product">📦 ${doc.productId} &nbsp;|&nbsp; Score: ${doc.score}/5</span>
-                <span class="badge ${s}">${s.toUpperCase()}</span>
+              <div class="card-header">
+                <div class="card-meta">
+                  <span class="card-product">${doc.productId}</span>
+                  <div class="card-score">${stars(doc.score)}</div>
+                </div>
+                <span class="badge ${s}">${s}</span>
               </div>
-              <div class="text">${doc.text ? doc.text.substring(0, 200) : ''}...</div>
-              <div class="correct">Ground truth: ${doc.groundTruth} | 
-                Correct: ${doc.predictionCorrect ? '✓' : '✗'} | 
-                ${doc.processedAt ? doc.processedAt.substring(0,19) : ''}</div>
+              <div class="card-text">${doc.text ? doc.text.substring(0, 220) : ''}...</div>
+              <div class="card-footer">
+                <span class="card-truth">Ground truth: <strong>${doc.groundTruth}</strong></span>
+                <span class="correct-tag ${doc.predictionCorrect ? 'yes' : 'no'}">
+                  ${doc.predictionCorrect ? '✓ Correct' : '✗ Wrong'}
+                </span>
+              </div>
             `;
             feed.insertBefore(card, feed.firstChild);
             added++;
           });
-          // Keep only last 50 cards
-          while (feed.children.length > 50) {
-            feed.removeChild(feed.lastChild);
-          }
+
+          if (added > 0) updateSidebar();
+          while (feed.children.length > 60) feed.removeChild(feed.lastChild);
         })
-        .catch(() => {
-          document.getElementById('status').textContent = '● Reconnecting...';
-        });
+        .catch(() => {});
     }
 
     fetchLatest();
