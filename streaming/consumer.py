@@ -125,6 +125,8 @@ def write_to_mongo(batch_df, batch_id):
         return
 
     try:
+        # Rename clean_text to ngram_text — model was trained on this column name
+        batch_df = batch_df.withColumnRenamed("clean_text", "ngram_text")
         predictions = model.transform(batch_df)
         rows = predictions.select(
             "Id", "ProductId", "UserId", "Score",

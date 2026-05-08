@@ -1,4 +1,4 @@
-# SentiStream — Real-Time Amazon Review Sentiment Analysis
+# SentiStream Real-Time Amazon Review Sentiment Analysis
 
 > A production-grade Big Data pipeline that streams Amazon food reviews through Apache Kafka, classifies sentiment in real time using Apache Spark MLlib, stores predictions in MongoDB, and visualizes results on a live web dashboard.
 
@@ -118,7 +118,7 @@ AmazonReview/
 
 ## Dataset
 
-**Source:** [Amazon Fine Food Reviews — Kaggle](https://www.kaggle.com/snap/amazon-fine-food-reviews)
+**Source:** [Amazon Fine Food Reviews Kaggle](https://www.kaggle.com/snap/amazon-fine-food-reviews)
 
 | Field | Description |
 |---|---|
@@ -220,7 +220,7 @@ Two strategies applied:
 | Negative | 73.8% |
 | Neutral | 43.5% |
 
-> Note: Neutral recall is inherently limited for TF-IDF approaches — neutral reviews linguistically overlap with both positive and negative classes. Academic benchmarks using BERT on this dataset report neutral F1 of ~55–60%.
+> Note: Neutral recall is inherently limited for TF-IDF approaches neutral reviews linguistically overlap with both positive and negative classes. Academic benchmarks using BERT on this dataset report neutral F1 of ~55–60%.
 
 ---
 
@@ -239,8 +239,8 @@ Two strategies applied:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/amazon-sentiment-analysis.git
-cd amazon-sentiment-analysis
+git clone https://github.com/Beethoven04/sentiment-analysis.git
+cd sentiment-analysis
 ```
 
 ### 2. Download the dataset
@@ -352,9 +352,9 @@ Open your browser at **http://localhost:5000**
 
 ### Offline Mode (`/offline`)
 - Total prediction KPIs
-- Stacked bar chart — sentiment predictions by month
-- Doughnut chart — overall sentiment distribution
-- Product sentiment analyzer — enter any `ProductId` (e.g. `B001E4KFG0`) to see its pie chart breakdown
+- Stacked bar chart sentiment predictions by month
+- Doughnut chart overall sentiment distribution
+- Product sentiment analyzer enter any `ProductId` (e.g. `B001E4KFG0`) to see its pie chart breakdown
 
 ---
 
