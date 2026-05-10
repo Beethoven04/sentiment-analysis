@@ -1,6 +1,6 @@
 # SentiStream Real-Time Amazon Review Sentiment Analysis
 
-> Created By : ACHRAF ELBOUMASHOULI & GHIZLANE AFAILAL TREBAK & EDDIAZ Louai & MINYURANO Aloys
+**-Created By : ACHRAF ELBOUMASHOULI & GHIZLANE AFAILAL TREBAK & EDDIAZ Louai & MINYURANO Aloys**
 
 > A production-grade Big Data pipeline that streams Amazon food reviews through Apache Kafka, classifies sentiment in real time using Apache Spark MLlib, stores predictions in MongoDB, and visualizes results on a live web dashboard.
 
